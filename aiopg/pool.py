@@ -10,7 +10,7 @@ from .connection import connect, TIMEOUT
 from .log import logger
 from .utils import (PY_35, _PoolContextManager, _PoolConnectionContextManager,
                     _PoolCursorContextManager, _PoolAcquireContextManager,
-                    ensure_future, create_future)
+                    ensure_future, create_future, create_condition)
 
 
 PY_341 = sys.version_info >= (3, 4, 1)
@@ -71,7 +71,7 @@ class Pool(asyncio.AbstractServer):
         self._conn_kwargs = kwargs
         self._acquiring = 0
         self._free = collections.deque(maxlen=maxsize or None)
-        self._cond = asyncio.Condition(loop=loop)
+        self._cond = create_condition(loop)
         self._used = set()
         self._terminated = set()
         self._closing = False

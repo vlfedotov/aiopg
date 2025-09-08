@@ -4,6 +4,7 @@ import psycopg2
 
 PY_35 = sys.version_info >= (3, 5)
 PY_352 = sys.version_info >= (3, 5, 2)
+PY_310 = sys.version_info >= (3, 10)
 
 if PY_35:
     from collections.abc import Coroutine
@@ -23,6 +24,24 @@ def create_future(loop):
         return loop.create_future()
     except AttributeError:
         return asyncio.Future(loop=loop)
+
+
+def create_condition(loop=None):
+    """Create asyncio.Condition compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.Condition()
+    else:
+        return asyncio.Condition(loop=loop)
+
+
+def create_queue(maxsize=0, loop=None):
+    """Create asyncio.Queue compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.Queue(maxsize=maxsize)
+    else:
+        return asyncio.Queue(maxsize=maxsize, loop=loop)
 
 
 class _ContextManager(base):

@@ -14,7 +14,7 @@ from psycopg2.extensions import (
 from psycopg2 import extras
 
 from .cursor import Cursor
-from .utils import _ContextManager, PY_35, create_future
+from .utils import _ContextManager, create_future, create_queue
 
 
 __all__ = ('connect',)
@@ -122,7 +122,7 @@ class Connection:
         self._cancellation_waiter = None
         self._echo = echo
         self._conn_cursor = None
-        self._notifies = asyncio.Queue(loop=loop)
+        self._notifies = create_queue(loop=loop)
         self._weakref = weakref.ref(self)
         self._loop.add_reader(self._fileno, self._ready, self._weakref)
 
