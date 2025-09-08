@@ -30,9 +30,44 @@ def create_condition(loop=None):
     """Create asyncio.Condition compatible with different Python versions."""
     if PY_310:
         # Python 3.10+ doesn't accept loop parameter
-        return asyncio.Condition()
+        # But we need to maintain the same interface for 'with (yield from cond):'
+        return _ConditionWrapper(asyncio.Condition())
     else:
         return asyncio.Condition(loop=loop)
+
+
+class _ConditionWrapper:
+    """Wrapper for asyncio.Condition to maintain compatibility with old usage pattern."""
+    
+    def __init__(self, condition):
+        self._condition = condition
+        self._acquired = False
+    
+    @asyncio.coroutine 
+    def __iter__(self):
+        # This allows 'yield from condition' to work as a context manager
+        yield from self._condition.acquire()
+        self._acquired = True
+        return self
+    
+    def __enter__(self):
+        if not self._acquired:
+            raise RuntimeError('Condition must be acquired first using "yield from"')
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._acquired:
+            self._condition.release()
+            self._acquired = False
+    
+    def notify(self, n=1):
+        return self._condition.notify(n)
+        
+    def notify_all(self):
+        return self._condition.notify_all()
+        
+    def wait(self):
+        return self._condition.wait()
 
 
 def create_queue(maxsize=0, loop=None):
