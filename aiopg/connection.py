@@ -14,7 +14,7 @@ from psycopg2.extensions import (
 from psycopg2 import extras
 
 from .cursor import Cursor
-from .utils import _ContextManager, create_future, create_queue
+from .utils import _ContextManager, create_future, create_queue, PY_35
 
 
 __all__ = ('connect',)
