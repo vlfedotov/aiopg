@@ -79,6 +79,24 @@ def create_queue(maxsize=0, loop=None):
         return asyncio.Queue(maxsize=maxsize, loop=loop)
 
 
+def wait_for(aw, timeout, *, loop=None):
+    """asyncio.wait_for compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.wait_for(aw, timeout)
+    else:
+        return asyncio.wait_for(aw, timeout, loop=loop)
+
+
+def shield(aw, *, loop=None):
+    """asyncio.shield compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.shield(aw)
+    else:
+        return asyncio.shield(aw, loop=loop)
+
+
 class _ContextManager(base):
     __slots__ = ('_coro', '_obj')
 
