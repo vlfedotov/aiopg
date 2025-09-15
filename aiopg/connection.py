@@ -14,7 +14,8 @@ from psycopg2.extensions import (
 from psycopg2 import extras
 
 from .cursor import Cursor
-from .utils import _ContextManager, PY_35, create_future
+from .utils import (_ContextManager, create_future, create_queue, PY_35, 
+                    wait_for, shield)
 
 
 __all__ = ('connect',)
@@ -122,7 +123,7 @@ class Connection:
         self._cancellation_waiter = None
         self._echo = echo
         self._conn_cursor = None
-        self._notifies = asyncio.Queue(loop=loop)
+        self._notifies = create_queue(loop=loop)
         self._weakref = weakref.ref(self)
         self._loop.add_reader(self._fileno, self._ready, self._weakref)
 
@@ -233,17 +234,16 @@ class Connection:
             if not self._conn.isexecuting():
                 return
             try:
-                yield from asyncio.wait_for(self._waiter, timeout,
-                                            loop=self._loop)
+                yield from wait_for(self._waiter, timeout, loop=self._loop)
             except psycopg2.extensions.QueryCanceledError:
                 pass
             except asyncio.TimeoutError:
                 self._close()
 
         try:
-            yield from asyncio.wait_for(self._waiter, timeout, loop=self._loop)
+            yield from wait_for(self._waiter, timeout, loop=self._loop)
         except (asyncio.CancelledError, asyncio.TimeoutError) as exc:
-            yield from asyncio.shield(cancel(), loop=self._loop)
+            yield from shield(cancel(), loop=self._loop)
             raise exc
         except psycopg2.extensions.QueryCanceledError:
             raise asyncio.CancelledError

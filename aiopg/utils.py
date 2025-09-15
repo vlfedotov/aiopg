@@ -4,6 +4,7 @@ import psycopg2
 
 PY_35 = sys.version_info >= (3, 5)
 PY_352 = sys.version_info >= (3, 5, 2)
+PY_310 = sys.version_info >= (3, 10)
 
 if PY_35:
     from collections.abc import Coroutine
@@ -23,6 +24,77 @@ def create_future(loop):
         return loop.create_future()
     except AttributeError:
         return asyncio.Future(loop=loop)
+
+
+def create_condition(loop=None):
+    """Create asyncio.Condition compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        # But we need to maintain the same interface for 'with (yield from cond):'
+        return _ConditionWrapper(asyncio.Condition())
+    else:
+        return asyncio.Condition(loop=loop)
+
+
+class _ConditionWrapper:
+    """Wrapper for asyncio.Condition to maintain compatibility with old usage pattern."""
+    
+    def __init__(self, condition):
+        self._condition = condition
+        self._acquired = False
+    
+    @asyncio.coroutine 
+    def __iter__(self):
+        # This allows 'yield from condition' to work as a context manager
+        yield from self._condition.acquire()
+        self._acquired = True
+        return self
+    
+    def __enter__(self):
+        if not self._acquired:
+            raise RuntimeError('Condition must be acquired first using "yield from"')
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._acquired:
+            self._condition.release()
+            self._acquired = False
+    
+    def notify(self, n=1):
+        return self._condition.notify(n)
+        
+    def notify_all(self):
+        return self._condition.notify_all()
+        
+    def wait(self):
+        return self._condition.wait()
+
+
+def create_queue(maxsize=0, loop=None):
+    """Create asyncio.Queue compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.Queue(maxsize=maxsize)
+    else:
+        return asyncio.Queue(maxsize=maxsize, loop=loop)
+
+
+def wait_for(aw, timeout, *, loop=None):
+    """asyncio.wait_for compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.wait_for(aw, timeout)
+    else:
+        return asyncio.wait_for(aw, timeout, loop=loop)
+
+
+def shield(aw, *, loop=None):
+    """asyncio.shield compatible with different Python versions."""
+    if PY_310:
+        # Python 3.10+ doesn't accept loop parameter
+        return asyncio.shield(aw)
+    else:
+        return asyncio.shield(aw, loop=loop)
 
 
 class _ContextManager(base):
